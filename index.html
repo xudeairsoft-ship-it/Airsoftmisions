@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AIRSOFT OPS: MISIÓN TÁCTICA</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Military Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Orbitron & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800;900&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tactical: {
+                            bg: '#0c0f0d',
+                            card: '#151b17',
+                            border: '#29352c',
+                            olive: '#4a634e',
+                            oliveDark: '#263328',
+                            amber: '#e5a93b',
+                            amberDark: '#996c1e',
+                            red: '#ef4444',
+                            text: '#e2e8f0',
+                            accent: '#10b981'
+                        }
+                    },
+                    fontFamily: {
+                        hud: ['Orbitron', 'sans-serif'],
+                        body: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0c0f0d;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* Scanlines & Tactical Grid HUD overlay */
+        .hud-grid {
+            background-image: 
+                linear-gradient(rgba(41, 53, 44, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(41, 53, 44, 0.15) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .hud-border {
+            border: 1px solid #29352c;
+            position: relative;
+        }
+        .hud-border::before {
+            content: '';
+            position: absolute;
+            top: -1px; left: -1px; width: 6px; height: 6px;
+            border-top: 2px solid #4a634e;
+            border-left: 2px solid #4a634e;
+        }
+        .hud-border::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; right: -1px; width: 6px; height: 6px;
+            border-bottom: 2px solid #4a634e;
+            border-right: 2px solid #4a634e;
+        }
+
+        .amber-glow {
+            text-shadow: 0 0 8px rgba(229, 169, 59, 0.5);
+        }
+        .green-glow {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0c0f0d;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #29352c;
+            border-radius: 2px;
+        }
+
+        /* Tactical Pulse Animation */
+        @keyframes tacticalPulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 99, 78, 0.7); }
+            50% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(74, 99, 78, 0); }
+        }
+        .pulse-btn {
+            animation: tacticalPulse 3s infinite;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col justify-between hud-grid">
+
+    <!-- HEADER / HUD TOP BAR -->
+    <header class="bg-tactical-card/95 border-b border-tactical-border p-3 flex flex-col gap-2 shrink-0 z-20 backdrop-blur-md">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded bg-tactical-olive/30 border border-tactical-olive flex items-center justify-center text-tactical-amber">
+                    <i class="fa-solid fa-crosshairs text-base"></i>
+                </div>
+                <div>
+                    <h1 class="font-hud text-xs tracking-wider text-tactical-amber uppercase font-extrabold flex items-center gap-2">
+                        AIRSOFT OPS <span class="bg-tactical-olive/40 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded font-mono">PWA</span>
+                    </h1>
+                    <p id="playerCallsign" class="text-xs text-gray-400 font-medium">OPERADOR-01</p>
+                </div>
+            </div>
+
+            <!-- Rank Badge -->
+            <div class="flex items-center gap-2 text-right">
+                <div>
+                    <span id="rankTitle" class="block font-hud text-xs font-bold text-gray-200">RECLUTA I</span>
+                    <span id="playerLevel" class="text-[10px] text-tactical-amber font-mono">NIVEL 1</span>
+                </div>
+                <div id="rankIconContainer" class="w-9 h-9 rounded-lg bg-tactical-border/60 border border-tactical-olive flex items-center justify-center text-tactical-amber text-lg">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- XP Progress Bar -->
+        <div class="space-y-1">
+            <div class="flex justify-between text-[10px] font-mono text-gray-400">
+                <span>XP PROGRESO</span>
+                <span id="xpText">0 / 150 XP</span>
+            </div>
+            <div class="w-full h-2 bg-black/60 rounded-full border border-tactical-border overflow-hidden p-0.5">
+                <div id="xpBar" class="h-full bg-gradient-to-r from-tactical-olive to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN APP CONTENT AREA (Scrollable) -->
+    <main class="flex-1 overflow-y-auto p-3 space-y-4 pb-20">
+        
+        <!-- VIEW 1: MISIONES / OPERACIONES -->
+        <section id="viewMissions" class="space-y-4">
+            
+            <!-- Quick Loadout Info Card -->
+            <div class="hud-border bg-tactical-card/80 p-3 rounded-lg flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="activeWeaponIcon" class="text-tactical-amber text-xl w-7 text-center">
+                        <i class="fa-solid fa-gun"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] uppercase font-mono text-gray-400 tracking-wider">CONFIGURACIÓN ACTUAL</span>
+                        <div class="flex items-center gap-2 text-xs font-bold text-gray-200">
+                            <span id="activeWeaponName">Fusilero / Asalto</span>
+                            <span class="text-tactical-border">•</span>
+                            <span id="activeRoleName" class="text-emerald-400">Ataque (Flanqueo)</span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="switchTab('loadout')" class="px-2.5 py-1.5 rounded bg-tactical-border/50 hover:bg-tactical-border text-[11px] font-mono text-gray-300 border border-tactical-olive/40 flex items-center gap-1 active:scale-95 transition">
+                    <i class="fa-solid fa-sliders text-tactical-amber"></i> CAMBIAR
+                </button>
+            </div>
+
+            <!-- CTA: Generar Misión Button -->
+            <button onclick="generateMission()" id="btnGenerateMission" class="pulse-btn w-full py-3.5 px-4 bg-gradient-to-r from-tactical-oliveDark via-tactical-olive to-emerald-800 hover:brightness-110 active:scale-[0.98] border border-emerald-500/40 rounded-lg text-white font-hud font-bold tracking-wider text-sm flex items-center justify-center gap-3 shadow-lg">
+                <i class="fa-solid fa-crosshairs text-tactical-amber text-lg"></i>
+                <span>GENERAR MISIÓN TÁCTICA</span>
+            </button>
+
+            <!-- Active Missions List -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="font-hud text-xs text-gray-300 tracking-wider uppercase flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-check text-tactical-amber"></i> MISIONES ACTIVAS (<span id="activeMissionCount">0</span>/3)
+                    </h2>
+                    <span class="text-[10px] text-gray-500 font-mono">TOCA 'COMPLETAR' AL LOGRARLA</span>
+                </div>
+
+                <div id="activeMissionsList" class="space-y-3">
+                    <!-- Dynamic mission cards loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 2: EQUIPAMIENTO / LOADOUT -->
+        <section id="viewLoadout" class="hidden space-y-4">
+            <div class="border-b border-tactical-border pb-2">
+                <h2 class="font-hud text-sm text-tactical-amber font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-gun"></i> CONFIGURA TU EQUIPAMIENTO
+                </h2>
+                <p class="text-xs text-gray-400">Las misiones se adaptarán estrictamente a tus posibilidades reales en el campo.</p>
+            </div>
+
+            <!-- Weapon Select -->
+            <div class="space-y-2">
+                <label class="text-xs font-mono text-gray-300 uppercase tracking-wide block">1. Armamento Principal</label>
+                <div class="grid grid-cols-2 gap-2" id="weaponSelectorGrid">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Role Select -->
+            <div class="space-y-2 pt-2">
+                <label class="text-xs font-mono text-gray-300 uppercase tracking-wide block">2. Rol Táctico en Partida</label>
+                <div class="grid grid-cols-3 gap-2" id="roleSelectorGrid">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <!-- Save Confirmation Note -->
+            <div class="bg-tactical-olive/10 border border-tactical-olive/30 p-3 rounded text-xs text-gray-300 flex items-center gap-2">
+                <i class="fa-solid fa-circle-info text-tactical-amber text-base"></i>
+                <span>Cambiar de equipamiento no borra tus misiones activas ya aceptadas.</span>
+            </div>
+        </section>
+
+        <!-- VIEW 3: PROGRESO Y HOJA DE SERVICIO -->
+        <section id="viewProgress" class="hidden space-y-4">
+            
+            <!-- Rank & Stats Summary -->
+            <div class="hud-border bg-tactical-card p-4 rounded-lg space-y-3">
+                <div class="flex items-center gap-3">
+                    <div id="statRankBadge" class="w-12 h-12 rounded-lg bg-tactical-oliveDark border border-tactical-amber flex items-center justify-center text-tactical-amber text-2xl">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                    <div>
+                        <h3 id="statRankTitle" class="font-hud text-sm text-gray-100 font-bold">RECLUTA I</h3>
+                        <p id="statRankDesc" class="text-xs text-gray-400">Iniciando en el campo de batalla táctico.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 pt-2 border-t border-tactical-border/60 text-center font-mono">
+                    <div class="bg-black/40 p-2 rounded border border-tactical-border">
+                        <span class="block text-[10px] text-gray-400">XP TOTAL</span>
+                        <span id="statTotalXP" class="text-sm font-bold text-tactical-amber">0</span>
+                    </div>
+                    <div class="bg-black/40 p-2 rounded border border-tactical-border">
+                        <span class="block text-[10px] text-gray-400">MISIONES</span>
+                        <span id="statCompletedCount" class="text-sm font-bold text-emerald-400">0</span>
+                    </div>
+                    <div class="bg-black/40 p-2 rounded border border-tactical-border">
+                        <span class="block text-[10px] text-gray-400">EFECTIVIDAD</span>
+                        <span id="statEfficiency" class="text-sm font-bold text-sky-400">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ranks Road map -->
+            <div class="space-y-2">
+                <h3 class="font-hud text-xs text-gray-300 tracking-wider uppercase flex items-center gap-1.5">
+                    <i class="fa-solid fa-medal text-tactical-amber"></i> ESCALAFÓN DE RANGOS
+                </h3>
+                <div id="ranksList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- Ranks rendering -->
+                </div>
+            </div>
+
+            <!-- Completed Missions History -->
+            <div class="space-y-2">
+                <h3 class="font-hud text-xs text-gray-300 tracking-wider uppercase flex items-center justify-between">
+                    <span><i class="fa-solid fa-clock-rotate-left text-tactical-amber"></i> HISTORIAL DE OPERACIONES</span>
+                    <span id="historyCount" class="text-[10px] font-mono text-gray-500">0 REGISTROS</span>
+                </h3>
+                <div id="historyList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <!-- History rendering -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 4: AJUSTES / HQ -->
+        <section id="viewSettings" class="hidden space-y-4">
+            <div class="border-b border-tactical-border pb-2">
+                <h2 class="font-hud text-sm text-tactical-amber font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-sliders"></i> CUARTEL GENERAL & AJUSTES
+                </h2>
+                <p class="text-xs text-gray-400">Personaliza tu identificador y gestiona tus datos.</p>
+            </div>
+
+            <!-- Profile Settings -->
+            <div class="hud-border bg-tactical-card p-3 rounded-lg space-y-3">
+                <label class="text-xs font-mono text-gray-300 uppercase tracking-wide block">Identificador / Indicativo (Callsign)</label>
+                <div class="flex gap-2">
+                    <input type="text" id="callsignInput" maxlength="16" placeholder="Ej: FANTASMA-07" class="flex-1 bg-black/70 border border-tactical-border rounded px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-tactical-olive">
+                    <button onclick="saveCallsign()" class="px-4 py-2 bg-tactical-olive hover:bg-tactical-oliveDark text-white text-xs font-hud rounded transition">
+                        GUARDAR
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audio Settings -->
+            <div class="hud-border bg-tactical-card p-3 rounded-lg flex items-center justify-between">
+                <div>
+                    <span class="text-xs font-bold text-gray-200 block">EFECTOS DE SONIDO TÁCTICOS</span>
+                    <span class="text-[10px] text-gray-400 font-mono">Bips de confirmación y fanfarria táctica</span>
+                </div>
+                <button onclick="toggleAudio()" id="btnAudioToggle" class="w-12 h-6 rounded-full bg-tactical-olive p-1 flex items-center transition duration-300 justify-end">
+                    <div class="w-4 h-4 rounded-full bg-white shadow"></div>
+                </button>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3 pt-2">
+                <button onclick="copyMatchSummary()" class="w-full py-2.5 px-3 bg-tactical-border/60 hover:bg-tactical-border border border-tactical-olive/40 rounded text-xs font-mono text-gray-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-share-nodes text-tactical-amber"></i> COPIAR RESUMEN DE JORNADA
+                </button>
+
+                <!-- FIXED TWO-STEP INLINE CONFIRMATION RESET BUTTON -->
+                <div class="pt-2 border-t border-tactical-border/60">
+                    <button id="btnResetProgress" onclick="handleResetProgress()" class="w-full py-2.5 px-3 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 rounded text-xs font-mono text-red-300 flex items-center justify-center gap-2 transition duration-200">
+                        <i class="fa-solid fa-triangle-exclamation"></i> REINICIAR PROGRESO Y EXPEDIENTE
+                    </button>
+                    <p class="text-[10px] text-gray-500 font-mono text-center mt-1">Requiere doble pulsación rápida para evitar descuidos.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER NAVBAR (MOBILE FIRST) -->
+    <nav class="bg-tactical-card border-t border-tactical-border flex justify-around items-center h-16 z-20 shrink-0">
+        <button onclick="switchTab('missions')" id="nav-missions" class="flex flex-col items-center justify-center w-full h-full text-tactical-amber transition">
+            <i class="fa-solid fa-crosshairs text-lg"></i>
+            <span class="text-[10px] font-hud mt-1 tracking-wider">OPS</span>
+        </button>
+        <button onclick="switchTab('loadout')" id="nav-loadout" class="flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition">
+            <i class="fa-solid fa-gun text-lg"></i>
+            <span class="text-[10px] font-hud mt-1 tracking-wider">EQUIPO</span>
+        </button>
+        <button onclick="switchTab('progress')" id="nav-progress" class="flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition">
+            <i class="fa-solid fa-chart-line text-lg"></i>
+            <span class="text-[10px] font-hud mt-1 tracking-wider">HOJA</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center justify-center w-full h-full text-gray-500 hover:text-gray-300 transition">
+            <i class="fa-solid fa-sliders text-lg"></i>
+            <span class="text-[10px] font-hud mt-1 tracking-wider">HQ</span>
+        </button>
+    </nav>
+
+    <!-- CUSTOM MODAL NOTIFICATION (No native alert/confirm) -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="hud-border bg-tactical-card border-tactical-amber w-full max-w-sm rounded-lg p-5 space-y-4 text-center shadow-2xl">
+            <div id="modalIcon" class="w-12 h-12 mx-auto rounded-full bg-tactical-amber/20 border border-tactical-amber flex items-center justify-center text-tactical-amber text-2xl">
+                <i class="fa-solid fa-award"></i>
+            </div>
+            <h3 id="modalTitle" class="font-hud text-base font-bold text-white uppercase tracking-wider">¡MISIÓN COMPLETADA!</h3>
+            <p id="modalBody" class="text-xs text-gray-300 leading-relaxed font-body">Has sumado +100 XP a tu expediente táctico.</p>
+            <button onclick="closeModal()" class="w-full py-2.5 bg-tactical-olive hover:bg-emerald-700 text-white font-hud text-xs rounded tracking-wider transition">
+                ENTENDIDO
+            </button>
+        </div>
+    </div>
+
+    <!-- APPLICATION LOGIC JS -->
+    <script>
+        /* ----------------------------------------------------
+           1. DATABASE DE WEAPONS, ROLES, RANKS Y MISIONES (45+)
+           ---------------------------------------------------- */
+        
+        const WEAPONS = [
+            { id: 'rifle', name: 'Asalto / Fusilero', icon: 'fa-gun', desc: 'Versátil, combate medio/corto' },
+            { id: 'sniper', name: 'Francotirador / Sniper', icon: 'fa-crosshairs', desc: 'Largo alcance, sigilo' },
+            { id: 'dmr', name: 'Tirador Selecto / DMR', icon: 'fa-bullseye', desc: 'Alcance medio-alto, fuego semiatom' },
+            { id: 'smg', name: 'Subfusil / CQB', icon: 'fa-vector-square', desc: 'Alta movilidad y rapidez' },
+            { id: 'lmg', name: 'Apoyo / LMG', icon: 'fa-shield-cat', desc: 'Fuego de supresión pesado' },
+            { id: 'pistol', name: 'Secundaria / Pistola', icon: 'fa-hand-back-fist', desc: 'Agilidad máxima o retos' }
+        ];
+
+        const ROLES = [
+            { id: 'attack', name: 'Ataque', desc: 'Flanqueo y avance' },
+            { id: 'defense', name: 'Defensa', desc: 'Control de zona' },
+            { id: 'mixed', name: 'Mixto', desc: 'Adaptativo' }
+        ];
+
+        const RANKS = [
+            { minXP: 0, title: 'RECLUTA I', icon: 'fa-shield-halved', desc: 'Iniciando en el campo táctico.' },
+            { minXP: 150, title: 'RECLUTA II', icon: 'fa-shield-cat', desc: 'Primeras operaciones superadas.' },
+            { minXP: 350, title: 'OPERADOR I', icon: 'fa-person-rifle', desc: 'Movimiento fluido y disciplina.' },
+            { minXP: 600, title: 'OPERADOR II', icon: 'fa-crosshairs', desc: 'Dominio de coberturas y flanqueos.' },
+            { minXP: 950, title: 'ESPECIALISTA TÁCTICO', icon: 'fa-user-ninja', desc: 'Lectura de campo avanzada.' },
+            { minXP: 1400, title: 'VETERANO DE CAMPO', icon: 'fa-medal', desc: 'Control total bajo presión.' },
+            { minXP: 1950, title: 'FANTASMA INFILTRADO', icon: 'fa-eye-slash', desc: 'Tirador furtivo e imperceptible.' },
+            { minXP: 2600, title: 'COMANDANTE TÁCTICO', icon: 'fa-award', desc: 'Líder en rotaciones y cobertura.' },
+            { minXP: 3400, title: 'LEYENDA DEL AIRSOFT', icon: 'fa-crown', desc: 'Maestría absoluta en cualquier rol.' }
+        ];
+
+        // Core Mission Database (48 Complete Airsoft Tactical Missions)
+        const MISSIONS_DB = [
+            // ATAQUE / FLANQUEO / MOVILIDAD
+            { id: 'm1', title: 'Flanqueo Extremo', desc: 'Realiza una rotación completa por el borde exterior del campo sin disparar hasta estar a tiro limpio por la espalda.', diff: 'Media', xp: 100, weapons: ['all'], roles: ['attack', 'mixed'] },
+            { id: 'm2', title: 'Avanzada Silenciosa', desc: 'Avanza entre 3 coberturas sucesivas sin ser visto ni recibir fuego enemigo durante el desplazamiento.', diff: 'Fácil', xp: 60, weapons: ['all'], roles: ['attack', 'mixed'] },
+            { id: 'm3', title: 'Cazador de Sombras', desc: 'Elimina a un defensor parapetado en una posición clave usando un ángulo ciego.', diff: 'Media', xp: 120, weapons: ['rifle', 'smg', 'dmr', 'pistol'], roles: ['attack', 'mixed'] },
+            { id: 'm4', title: 'Asalto Relámpago', desc: 'Realiza un avance rápido por el flanco en los primeros 2 minutos de partida para cortar la primera rotación rival.', diff: 'Media', xp: 110, weapons: ['smg', 'rifle', 'pistol'], roles: ['attack', 'mixed'] },
+            { id: 'm5', title: 'Lanza de Ruptura', desc: 'SÉ el primer jugador de tu escuadra en cruzar la línea de mitad de campo sin ser eliminado.', diff: 'Fácil', xp: 70, weapons: ['all'], roles: ['attack', 'mixed'] },
+            { id: 'm6', title: 'Infiltración Furtiva', desc: 'Colócate a espaldas del equipo enemigo y consigue al menos 1 baja a distancia de seguridad o toque de voz.', diff: 'Difícil', xp: 200, weapons: ['smg', 'pistol', 'sniper'], roles: ['attack', 'mixed'] },
+            { id: 'm7', title: 'Apertura de Tenaza', desc: 'Coordina con un compañero un avance simultáneo por dos lados de la misma estructura.', diff: 'Media', xp: 100, weapons: ['all'], roles: ['attack', 'mixed'] },
+            { id: 'm8', title: 'Distracción Táctica', desc: 'Asoma y haz fuego de fijación desde un lateral para atrapar la atención del enemigo mientras tu equipo avanza.', diff: 'Fácil', xp: 80, weapons: ['rifle', 'lmg', 'smg'], roles: ['attack', 'mixed'] },
+            { id: 'm41', title: 'Flanqueo de Cebo', desc: 'Muestra tu posición fugazmente en un extremo para que duden y rota inmediatamente al lado opuesto.', diff: 'Media', xp: 110, weapons: ['all'], roles: ['attack', 'mixed'] },
+            { id: 'm42', title: 'Apertura sin Disparo', desc: 'Gana 20 metros de terreno ofensivo únicamente aprovechando las ráfagas de cobertura de tus aliados.', diff: 'Fácil', xp: 75, weapons: ['all'], roles: ['attack', 'mixed'] },
+
+            // DEFENSA / CONTROL DE ZONA / ANCLAJE
+            { id: 'm9', title: 'Anclaje de Cobertura', desc: 'Sostén una posición defensiva estratégica durante al menos 4 minutos impidiendo el avance enemigo por ese corredor.', diff: 'Fácil', xp: 70, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm10', title: 'Defensa Elástica', desc: 'Defiende una primera línea de contacto y realiza un repliegue ordenado a una 2ª cobertura cuando la presión sea muy alta.', diff: 'Media', xp: 110, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm11', title: 'Embudo Infranqueable', desc: 'Bloquea por completo un paso estrecho o puerta logrando detener 2 intentos de asalto enemigos.', diff: 'Media', xp: 120, weapons: ['rifle', 'lmg', 'smg', 'dmr'], roles: ['defense', 'mixed'] },
+            { id: 'm12', title: 'Centinela de Hierro', desc: 'Evita que ningún rival atraviese el perímetro defensivo de tu zona durante los primeros 5 minutos.', diff: 'Media', xp: 100, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm13', title: 'Ángulo Cruzado', desc: 'Posiciónate formando un fuego cruzado con un aliado para cubrir el punto ciego de la cobertura principal.', diff: 'Fácil', xp: 80, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm14', title: 'Resistencia Desesperada', desc: 'Mantén el control de tu zona defensiva tú solo durante 2 minutos tras haber caído tu compañero de sector.', diff: 'Difícil', xp: 180, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm15', title: 'Intercepción de Flanqueo', desc: 'Detecta a un jugador enemigo intentando rodearos por la banda y elimínalo antes de que consiga ángulo.', diff: 'Media', xp: 130, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm16', title: 'Escudo Retrasado', desc: 'Proporciona cobertura de huida a dos compañeros para que puedan replegarse a salvo a tu posición.', diff: 'Fácil', xp: 90, weapons: ['rifle', 'lmg', 'dmr'], roles: ['defense', 'mixed'] },
+            { id: 'm43', title: 'Cambio de Esquina Tras Baja', desc: 'Tras lograr una baja en defensa, cambia de ventana o muro inmediatamente antes de asomar de nuevo.', diff: 'Fácil', xp: 80, weapons: ['all'], roles: ['defense', 'mixed'] },
+            { id: 'm44', title: 'Negación de Pasillo', desc: 'Consigue que ningún rival asome por el pasillo central durante un intervalo continuo de 3 minutos.', diff: 'Media', xp: 105, weapons: ['all'], roles: ['defense', 'mixed'] },
+
+            // ESPECÍFICAS DE SNIPER / DMR
+            { id: 'm17', title: 'Ojo de Águila', desc: 'Elimina a un enemigo situado a más de 30 metros de distancia de un solo disparo limpio.', diff: 'Media', xp: 120, weapons: ['sniper', 'dmr'], roles: ['all'] },
+            { id: 'm18', title: 'Fantasma Improbable', desc: 'Realiza 2 bajas desde tu posición emboscada sin que ningún enemigo descubra de qué cobertura provinieron.', diff: 'Difícil', xp: 190, weapons: ['sniper', 'dmr'], roles: ['all'] },
+            { id: 'm19', title: 'Observador Avanzado', desc: 'Localiza y comunica a tu equipo por voz/radio la posición de 3 enemigos antes de abrir fuego tú mismo.', diff: 'Fácil', xp: 80, weapons: ['sniper', 'dmr', 'rifle'], roles: ['all'] },
+            { id: 'm20', title: 'Supresión de Francotirador', desc: 'Localiza al tirador enemigo de largo alcance y mantenlo fijado sin asomar durante 3 minutos.', diff: 'Media', xp: 130, weapons: ['sniper', 'dmr'], roles: ['all'] },
+            { id: 'm21', title: 'One Shot, One Kill', desc: 'Completa un objetivo de eliminación utilizando exactamente 1 única BB cargada en la cámara.', diff: 'Difícil', xp: 200, weapons: ['sniper'], roles: ['all'] },
+            { id: 'm45', title: 'Relocalización de Tirador', desc: 'Efectúa un máximo de 2 disparos desde un nido y cambia de posición al menos 15 metros antes de volver a tirar.', diff: 'Media', xp: 135, weapons: ['sniper', 'dmr'], roles: ['all'] },
+
+            // ESPECÍFICAS DE LMG / APOYO
+            { id: 'm22', title: 'Muro de Bolas', desc: 'Sostén una ráfaga continua de supresión de 20 segundos obligando a todo un grupo rival a mantener la cabeza abajo.', diff: 'Fácil', xp: 90, weapons: ['lmg'], roles: ['all'] },
+            { id: 'm23', title: 'Cobertura Heavy', desc: 'Cubre el avance de tu equipo por un pasillo abierto gastando fuego continuo hasta que estén resguardados.', diff: 'Media', xp: 120, weapons: ['lmg', 'rifle'], roles: ['attack', 'mixed'] },
+            { id: 'm24', title: 'Cortina de Disuasión', desc: 'Impide que el equipo contrario asome por una ventana o esquina clave durante más de 3 minutos seguidos.', diff: 'Media', xp: 110, weapons: ['lmg'], roles: ['defense', 'mixed'] },
+            { id: 'm46', title: 'Cierre de Breach', desc: 'Cubre una brecha completa en la muralla/edificio permitiendo el reabastecimiento o cura de tu escuadra.', diff: 'Media', xp: 115, weapons: ['lmg', 'rifle'], roles: ['all'] },
+
+            // ESPECÍFICAS DE SMG / PISTOLA / CQB
+            { id: 'm25', title: 'Ruptura CQB', desc: 'Entra en una estancia o zona cerrada y elimina al ocupante defensivo a corta distancia.', diff: 'Media', xp: 120, weapons: ['smg', 'pistol'], roles: ['attack', 'mixed'] },
+            { id: 'm26', title: 'Transición Veloz', desc: 'Cambia a tu réplica secundaria (pistola) tras agotar o simular fallo en la principal y logra una baja.', diff: 'Media', xp: 130, weapons: ['all'], roles: ['all'] },
+            { id: 'm27', title: 'Desafío Pistolero', desc: 'Completa una ronda entera utilizando única y exclusivamente tu secundaria o pistola.', diff: 'Difícil', xp: 220, weapons: ['pistol', 'all'], roles: ['all'] },
+            { id: 'm28', title: 'Limpieza de Esquinas', desc: 'Asegura 3 esquinas consecutivas con postura baja y cañón apuntando correctamente antes de pasar.', diff: 'Fácil', xp: 70, weapons: ['smg', 'pistol', 'rifle'], roles: ['all'] },
+            { id: 'm47', title: 'Rush Secundario', desc: 'Realiza un asalto de corta distancia usando únicamente tu réplica secundaria manteniendo máxima agilidad.', diff: 'Media', xp: 140, weapons: ['pistol', 'smg'], roles: ['attack', 'mixed'] },
+
+            // RETOS DE TÉCNICA Y HABILIDAD PERSONAL
+            { id: 'm29', title: 'Hombro No Dominante', desc: 'Asoma y elimina a un enemigo disparando desde tu hombro débil o mano no habitual.', diff: 'Media', xp: 140, weapons: ['all'], roles: ['all'] },
+            { id: 'm30', title: 'Ahorro Extremo', desc: 'Completa la ronda entera utilizando como máximo 1 solo cargador mid-cap (o 30 BBs en sniper).', diff: 'Media', xp: 150, weapons: ['all'], roles: ['all'] },
+            { id: 'm31', title: 'Postura Tendido a Tierra', desc: 'Efectúa una baja estando completamente en posición tendido a tierra (prono) en vegetación o suelo.', diff: 'Fácil', xp: 80, weapons: ['all'], roles: ['all'] },
+            { id: 'm32', title: 'Superviviente Implacable', desc: 'Gana la ronda participando en al menos 2 enfrentamientos sin ser eliminado ni una sola vez.', diff: 'Difícil', xp: 250, weapons: ['all'], roles: ['all'] },
+            { id: 'm33', title: 'Ángulo Improbable', desc: 'Logra una baja disparando a través de una grieta, hueco de pared o espacio inferior a 20cm.', diff: 'Media', xp: 110, weapons: ['all'], roles: ['all'] },
+            { id: 'm34', title: 'Compañero Inseparable', desc: 'Permanece a menos de 5 metros de tu compañero de binomio durante toda la partida cubriendo su espalda.', diff: 'Fácil', xp: 80, weapons: ['all'], roles: ['all'] },
+            { id: 'm35', title: 'Silencio Absoluto', desc: 'Desplázate 50 metros por el campo sin hacer ruido de ramas, equipo colgado ni pisadas fuertes.', diff: 'Fácil', xp: 70, weapons: ['all'], roles: ['all'] },
+            { id: 'm36', title: 'Reconocimiento de Base', desc: 'Llega visualmente hasta la línea de base o respawn enemigo e identifica a su comandante.', diff: 'Media', xp: 140, weapons: ['all'], roles: ['attack', 'mixed'] },
+            { id: 'm37', title: 'Neutralización de Apoyo', desc: 'Localiza al jugador enemigo con réplica de apoyo (LMG) y elimínalo rompiendo su fuego de supresión.', diff: 'Media', xp: 150, weapons: ['all'], roles: ['all'] },
+            { id: 'm38', title: 'Recarga Táctica Bajo Fuego', desc: 'Efectúa una recarga de cargador guardando el vacío en el pouch sin dejar de cubrir la cobertura.', diff: 'Fácil', xp: 60, weapons: ['rifle', 'smg', 'dmr'], roles: ['all'] },
+            { id: 'm39', title: 'Doble Baja Furtiva', desc: 'Elimina a 2 enemigos distintos durante la misma partida sin haber sido alcanzado ninguna vez.', diff: 'Difícil', xp: 210, weapons: ['all'], roles: ['all'] },
+            { id: 'm40', title: 'Maestro de Cobertura Ligera', desc: 'Avanza utilizando únicamente elementos finos (árboles delgados, postes) sin exponer tu cuerpo.', diff: 'Fácil', xp: 90, weapons: ['all'], roles: ['all'] },
+            { id: 'm48', title: 'Comunicaciones de Radio Crisp', desc: 'Transmite al menos 3 indicaciones de mapa claras de presencia enemiga a tu equipo antes de abrir fuego.', diff: 'Fácil', xp: 75, weapons: ['all'], roles: ['all'] }
+        ];
+
+        /* ----------------------------------------------------
+           2. ESTADO DE LA APLICACIÓN Y PERSISTENCIA LOCAL
+           ---------------------------------------------------- */
+        
+        let state = {
+            callsign: 'OPERADOR-01',
+            xp: 0,
+            weapon: 'rifle',
+            role: 'attack',
+            activeMissions: [],
+            history: [],
+            audioEnabled: true,
+            streak: 1
+        };
+
+        // Load data from LocalStorage on init
+        function loadState() {
+            const saved = localStorage.getItem('AIRSOFT_OPS_PWA_DATA');
+            if (saved) {
+                try {
+                    state = { ...state, ...JSON.parse(saved) };
+                } catch(e) {
+                    console.error('Error loading saved state:', e);
+                }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('AIRSOFT_OPS_PWA_DATA', JSON.stringify(state));
+            updateHUD();
+        }
+
+        /* ----------------------------------------------------
+           3. SINTETIZADOR DE SONIDO TÁCTICO (Web Audio API)
+           ---------------------------------------------------- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (!state.audioEnabled) return;
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'generate') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'complete') {
+                    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+                    notes.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+
+                        noteOsc.type = 'square';
+                        noteOsc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                        noteGain.gain.setValueAtTime(0.08, now + idx * 0.08);
+                        noteGain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.18);
+
+                        noteOsc.start(now + idx * 0.08);
+                        noteOsc.stop(now + idx * 0.08 + 0.18);
+                    });
+                } else if (type === 'cancel' || type === 'warn') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.15);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                }
+            } catch(e) {
+                // Audio fallback silence
+            }
+        }
+
+        /* ----------------------------------------------------
+           4. LÓGICA DE NIVELES Y RANGOS
+           ---------------------------------------------------- */
+        function getRankInfo(xp) {
+            let currentRank = RANKS[0];
+            let nextRank = RANKS[1];
+
+            for (let i = 0; i < RANKS.length; i++) {
+                if (xp >= RANKS[i].minXP) {
+                    currentRank = RANKS[i];
+                    nextRank = RANKS[i + 1] || null;
+                }
+            }
+
+            const level = RANKS.indexOf(currentRank) + 1;
+            
+            let progress = 100;
+            let xpText = `${xp} XP (MÁXIMO)`;
+
+            if (nextRank) {
+                const xpInCurrentLevel = xp - currentRank.minXP;
+                const xpNeededForNext = nextRank.minXP - currentRank.minXP;
+                progress = Math.min(100, Math.floor((xpInCurrentLevel / xpNeededForNext) * 100));
+                xpText = `${xp} / ${nextRank.minXP} XP`;
+            }
+
+            return { currentRank, nextRank, level, progress, xpText };
+        }
+
+        /* ----------------------------------------------------
+           5. GENERACIÓN Y FILTRADO DE MISIONES
+           ---------------------------------------------------- */
+        function getCompatibleMissions() {
+            return MISSIONS_DB.filter(m => {
+                const weaponMatch = m.weapons.includes('all') || m.weapons.includes(state.weapon);
+                const roleMatch = m.roles.includes('all') || m.roles.includes(state.role) || state.role === 'mixed';
+                const isNotActive = !state.activeMissions.some(active => active.id === m.id);
+
+                return weaponMatch && roleMatch && isNotActive;
+            });
+        }
+
+        function generateMission() {
+            playSound('generate');
+            if (state.activeMissions.length >= 3) {
+                showModal('LÍMITE ALCANZADO', 'Ya tienes 3 misiones activas simultáneas. Completa o descarta una para aceptar más.', 'fa-circle-exclamation');
+                return;
+            }
+
+            const pool = getCompatibleMissions();
+            if (pool.length === 0) {
+                showModal('SIN MISIONES DISPONIBLES', 'No hay misiones adicionales para este equipamiento. Cambia de rol o equipamiento en la pestaña EQUIPO.', 'fa-triangle-exclamation');
+                return;
+            }
+
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            const mission = pool[randomIndex];
+            
+            state.activeMissions.push(mission);
+            saveState();
+            renderActiveMissions();
+        }
+
+        function completeMission(missionId) {
+            const index = state.activeMissions.findIndex(m => m.id === missionId);
+            if (index === -1) return;
+
+            playSound('complete');
+            const mission = state.activeMissions[index];
+            const oldRank = getRankInfo(state.xp).currentRank.title;
+
+            state.xp += mission.xp;
+            state.activeMissions.splice(index, 1);
+            
+            const historyEntry = {
+                title: mission.title,
+                xp: mission.xp,
+                date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                weapon: state.weapon,
+                role: state.role
+            };
+            state.history.unshift(historyEntry);
+
+            saveState();
+            renderActiveMissions();
+            renderHistory();
+
+            const newRank = getRankInfo(state.xp).currentRank.title;
+            if (oldRank !== newRank) {
+                showModal('¡ASCENSO TÁCTICO!', `¡Enhorabuena Operador! Has ascendido al rango de ${newRank}. +${mission.xp} XP ganados.`, 'fa-award');
+            } else {
+                showModal('¡MISIÓN CUMPLIDA!', `Operación completada con éxito. Has acumulado +${mission.xp} XP en tu expediente.`, 'fa-circle-check');
+            }
+        }
+
+        function cancelMission(missionId) {
+            playSound('cancel');
+            state.activeMissions = state.activeMissions.filter(m => m.id !== missionId);
+            saveState();
+            renderActiveMissions();
+        }
+
+        /* ----------------------------------------------------
+           6. FIXED TWO-STEP INLINE RESET PROGRESS SYSTEM
+           (No window.confirm or alerts used)
+           ---------------------------------------------------- */
+        let resetConfirmActive = false;
+        let resetTimer = null;
+
+        function handleResetProgress() {
+            const btn = document.getElementById('btnResetProgress');
+            if (!btn) return;
+
+            if (!resetConfirmActive) {
+                // First click: Ask confirmation in place
+                resetConfirmActive = true;
+                playSound('warn');
+
+                btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation animate-bounce"></i> ¿SEGURO? PULSA OTRA VEZ PARA BORRAR`;
+                btn.className = "w-full py-3 px-3 bg-red-600 hover:bg-red-700 border border-red-400 text-white font-hud font-bold text-xs rounded tracking-wider transition-all duration-200 animate-pulse flex items-center justify-center gap-2 shadow-lg";
+
+                // Revert after 4 seconds timeout if second tap isn't registered
+                resetTimer = setTimeout(() => {
+                    resetConfirmToDefault();
+                }, 4000);
+                return;
+            }
+
+            // Second click within 4s: Execute hard reset
+            if (resetTimer) clearTimeout(resetTimer);
+            resetConfirmActive = false;
+            playSound('complete');
+
+            // 1. Clear LocalStorage
+            try {
+                localStorage.removeItem('AIRSOFT_OPS_PWA_DATA');
+                localStorage.clear();
+            } catch(e) {
+                console.error('LocalStorage clear error:', e);
+            }
+
+            // 2. Reset state object to defaults
+            state = {
+                callsign: 'OPERADOR-01',
+                xp: 0,
+                weapon: 'rifle',
+                role: 'attack',
+                activeMissions: [],
+                history: [],
+                audioEnabled: true,
+                streak: 1
+            };
+
+            // 3. Reset Button UI
+            resetConfirmToDefault();
+
+            // 4. Save and re-render all interfaces immediately
+            saveState();
+            document.getElementById('callsignInput').value = state.callsign;
+            updateHUD();
+            renderActiveMissions();
+            renderLoadoutSelectors();
+            renderRanksRoad();
+            renderHistory();
+
+            showModal('PROGRESO REINICIADO', 'Se han restablecido todos los datos de expediente, XP, nivel e historial a cero.', 'fa-rotate-left');
+        }
+
+        function resetConfirmToDefault() {
+            resetConfirmActive = false;
+            const btn = document.getElementById('btnResetProgress');
+            if (btn) {
+                btn.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> REINICIAR PROGRESO Y EXPEDIENTE`;
+                btn.className = "w-full py-2.5 px-3 bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 rounded text-xs font-mono text-red-300 flex items-center justify-center gap-2 transition";
+            }
+        }
+
+        /* ----------------------------------------------------
+           7. RENDERING DE INTERFAZ Y COMPONENTES
+           ---------------------------------------------------- */
+        function updateHUD() {
+            const rankInfo = getRankInfo(state.xp);
+            
+            document.getElementById('playerCallsign').textContent = state.callsign;
+            document.getElementById('rankTitle').textContent = rankInfo.currentRank.title;
+            document.getElementById('playerLevel').textContent = `NIVEL ${rankInfo.level}`;
+            document.getElementById('xpText').textContent = rankInfo.xpText;
+            document.getElementById('xpBar').style.width = `${rankInfo.progress}%`;
+
+            const rankIconContainer = document.getElementById('rankIconContainer');
+            rankIconContainer.innerHTML = `<i class="fa-solid ${rankInfo.currentRank.icon}"></i>`;
+
+            const weaponObj = WEAPONS.find(w => w.id === state.weapon) || WEAPONS[0];
+            const roleObj = ROLES.find(r => r.id === state.role) || ROLES[0];
+
+            document.getElementById('activeWeaponName').textContent = weaponObj.name;
+            document.getElementById('activeRoleName').textContent = roleObj.name;
+            document.getElementById('activeWeaponIcon').innerHTML = `<i class="fa-solid ${weaponObj.icon}"></i>`;
+
+            document.getElementById('statRankTitle').textContent = rankInfo.currentRank.title;
+            document.getElementById('statRankDesc').textContent = rankInfo.currentRank.desc;
+            document.getElementById('statRankBadge').innerHTML = `<i class="fa-solid ${rankInfo.currentRank.icon}"></i>`;
+            document.getElementById('statTotalXP').textContent = state.xp;
+            document.getElementById('statCompletedCount').textContent = state.history.length;
+            
+            document.getElementById('activeMissionCount').textContent = state.activeMissions.length;
+        }
+
+        function renderActiveMissions() {
+            const list = document.getElementById('activeMissionsList');
+            list.innerHTML = '';
+
+            if (state.activeMissions.length === 0) {
+                list.innerHTML = `
+                    <div class="hud-border bg-black/40 p-6 rounded-lg text-center space-y-2 border-dashed">
+                        <i class="fa-solid fa-radar text-2xl text-tactical-olive"></i>
+                        <p class="text-xs font-mono text-gray-400">SIN MISIONES ACTIVAS EN PANTALLA</p>
+                        <p class="text-[11px] text-gray-500">Pulsa el botón superior para recibir una misión adaptada a tu rol.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            state.activeMissions.forEach(m => {
+                let diffColor = 'text-emerald-400 border-emerald-500/30';
+                if (m.diff === 'Media') diffColor = 'text-amber-400 border-amber-500/30';
+                if (m.diff === 'Difícil') diffColor = 'text-red-400 border-red-500/30';
+
+                const card = document.createElement('div');
+                card.className = 'hud-border bg-tactical-card p-3.5 rounded-lg space-y-2.5 relative';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-hud text-xs font-bold text-gray-100 uppercase tracking-wide">${m.title}</span>
+                                <span class="text-[9px] font-mono px-1.5 py-0.5 rounded border ${diffColor}">${m.diff}</span>
+                            </div>
+                            <p class="text-xs text-gray-300 mt-1 leading-relaxed font-body">${m.desc}</p>
+                        </div>
+                        <span class="font-hud text-xs font-bold text-tactical-amber bg-tactical-amber/10 border border-tactical-amber/30 px-2 py-1 rounded shrink-0">
+                            +${m.xp} XP
+                        </span>
+                    </div>
+
+                    <div class="flex gap-2 pt-1 border-t border-tactical-border/60">
+                        <button onclick="completeMission('${m.id}')" class="flex-1 py-2 bg-tactical-olive/80 hover:bg-emerald-600 text-white font-hud text-xs font-bold rounded flex items-center justify-center gap-1.5 active:scale-95 transition">
+                            <i class="fa-solid fa-check text-emerald-300"></i> COMPLETAR
+                        </button>
+                        <button onclick="cancelMission('${m.id}')" class="px-3 py-2 bg-tactical-border/40 hover:bg-red-950/60 text-gray-400 hover:text-red-300 font-mono text-xs rounded flex items-center justify-center active:scale-95 transition" title="Re-rollear o descartar">
+                            <i class="fa-solid fa-rotate text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function renderLoadoutSelectors() {
+            const wGrid = document.getElementById('weaponSelectorGrid');
+            wGrid.innerHTML = '';
+            WEAPONS.forEach(w => {
+                const selected = state.weapon === w.id;
+                const btn = document.createElement('button');
+                btn.onclick = () => { selectWeapon(w.id); };
+                btn.className = `hud-border p-3 rounded-lg text-left transition flex flex-col justify-between ${
+                    selected 
+                        ? 'bg-tactical-olive/30 border-emerald-500 text-white green-glow' 
+                        : 'bg-tactical-card/70 border-tactical-border text-gray-400 hover:border-gray-500'
+                }`;
+                btn.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <i class="fa-solid ${w.icon} ${selected ? 'text-tactical-amber' : 'text-gray-400'} text-lg"></i>
+                        ${selected ? '<i class="fa-solid fa-circle-check text-emerald-400 text-xs"></i>' : ''}
+                    </div>
+                    <div class="mt-2">
+                        <span class="font-hud text-xs font-bold block ${selected ? 'text-white' : 'text-gray-300'}">${w.name}</span>
+                        <span class="text-[10px] text-gray-400 font-body block">${w.desc}</span>
+                    </div>
+                `;
+                wGrid.appendChild(btn);
+            });
+
+            const rGrid = document.getElementById('roleSelectorGrid');
+            rGrid.innerHTML = '';
+            ROLES.forEach(r => {
+                const selected = state.role === r.id;
+                const btn = document.createElement('button');
+                btn.onclick = () => { selectRole(r.id); };
+                btn.className = `hud-border p-2.5 rounded-lg text-center transition ${
+                    selected 
+                        ? 'bg-tactical-olive/30 border-emerald-500 text-white green-glow' 
+                        : 'bg-tactical-card/70 border-tactical-border text-gray-400'
+                }`;
+                btn.innerHTML = `
+                    <span class="font-hud text-xs font-bold block ${selected ? 'text-emerald-300' : 'text-gray-300'}">${r.name}</span>
+                    <span class="text-[9px] font-body text-gray-400 block mt-0.5">${r.desc}</span>
+                `;
+                rGrid.appendChild(btn);
+            });
+        }
+
+        function selectWeapon(wId) {
+            playSound('click');
+            state.weapon = wId;
+            saveState();
+            renderLoadoutSelectors();
+        }
+
+        function selectRole(rId) {
+            playSound('click');
+            state.role = rId;
+            saveState();
+            renderLoadoutSelectors();
+        }
+
+        function renderRanksRoad() {
+            const container = document.getElementById('ranksList');
+            container.innerHTML = '';
+
+            RANKS.forEach((r) => {
+                const reached = state.xp >= r.minXP;
+                const item = document.createElement('div');
+                item.className = `p-2 rounded border text-xs flex items-center justify-between font-mono ${
+                    reached 
+                        ? 'bg-tactical-olive/20 border-tactical-olive/50 text-gray-200' 
+                        : 'bg-black/30 border-tactical-border/40 text-gray-600'
+                }`;
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid ${r.icon} ${reached ? 'text-tactical-amber' : 'text-gray-600'}"></i>
+                        <span>${r.title}</span>
+                    </div>
+                    <span class="text-[10px]">${r.minXP} XP</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            container.innerHTML = '';
+
+            document.getElementById('historyCount').textContent = `${state.history.length} REGISTROS`;
+
+            if (state.history.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-500 font-mono text-center py-4">No hay misiones completadas aún.</p>`;
+                return;
+            }
+
+            state.history.forEach(h => {
+                const item = document.createElement('div');
+                item.className = 'bg-tactical-card p-2.5 rounded border border-tactical-border/60 flex items-center justify-between text-xs';
+                item.innerHTML = `
+                    <div>
+                        <span class="font-hud font-bold text-gray-200 block">${h.title}</span>
+                        <span class="text-[10px] text-gray-500 font-mono">${h.date} • Rol: ${h.role.toUpperCase()}</span>
+                    </div>
+                    <span class="font-mono text-xs text-emerald-400 font-bold">+${h.xp} XP</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        /* ----------------------------------------------------
+           8. NAVEGACIÓN Y HQ
+           ---------------------------------------------------- */
+        function switchTab(tabId) {
+            playSound('click');
+            const views = {
+                missions: document.getElementById('viewMissions'),
+                loadout: document.getElementById('viewLoadout'),
+                progress: document.getElementById('viewProgress'),
+                settings: document.getElementById('viewSettings')
+            };
+
+            const navs = {
+                missions: document.getElementById('nav-missions'),
+                loadout: document.getElementById('nav-loadout'),
+                progress: document.getElementById('nav-progress'),
+                settings: document.getElementById('nav-settings')
+            };
+
+            Object.keys(views).forEach(key => {
+                if (key === tabId) {
+                    views[key].classList.remove('hidden');
+                    navs[key].classList.add('text-tactical-amber');
+                    navs[key].classList.remove('text-gray-500');
+                } else {
+                    views[key].classList.add('hidden');
+                    navs[key].classList.remove('text-tactical-amber');
+                    navs[key].classList.add('text-gray-500');
+                }
+            });
+
+            if (tabId === 'progress') {
+                renderRanksRoad();
+                renderHistory();
+            }
+        }
+
+        function saveCallsign() {
+            playSound('click');
+            const val = document.getElementById('callsignInput').value.trim();
+            if (val) {
+                state.callsign = val.toUpperCase();
+                saveState();
+                showModal('IDENTIFICADOR ACTUALIZADO', `Tu nuevo indicativo táctico es: ${state.callsign}`, 'fa-user-pen');
+            }
+        }
+
+        function toggleAudio() {
+            state.audioEnabled = !state.audioEnabled;
+            saveState();
+            updateAudioBtnUI();
+            if (state.audioEnabled) playSound('click');
+        }
+
+        function updateAudioBtnUI() {
+            const btn = document.getElementById('btnAudioToggle');
+            if (state.audioEnabled) {
+                btn.className = "w-12 h-6 rounded-full bg-tactical-olive p-1 flex items-center transition duration-300 justify-end";
+            } else {
+                btn.className = "w-12 h-6 rounded-full bg-gray-700 p-1 flex items-center transition duration-300 justify-start";
+            }
+        }
+
+        function copyMatchSummary() {
+            playSound('click');
+            const rank = getRankInfo(state.xp).currentRank.title;
+            const text = `=== INFORME DE COMBATE AIRSOFT ===\nOperador: ${state.callsign}\nRango: ${rank}\nXP Total: ${state.xp} XP\nMisiones Completadas: ${state.history.length}\nEquipamiento habitual: ${state.weapon.toUpperCase()}\nApp: AIRSOFT OPS MISIÓN TÁCTICA`;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text);
+            } else {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+            }
+
+            showModal('RESUMEN COPIADO', 'El resumen de tu jornada táctica se ha copiado al portapapeles para compartir.', 'fa-clipboard-check');
+        }
+
+        function showModal(title, body, iconClass = 'fa-award') {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').textContent = body;
+            document.getElementById('modalIcon').innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+            document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            playSound('click');
+            document.getElementById('modalOverlay').classList.add('hidden');
+        }
+
+        /* ----------------------------------------------------
+           9. INICIALIZACIÓN DE PÁGINA
+           ---------------------------------------------------- */
+        window.onload = function() {
+            loadState();
+            document.getElementById('callsignInput').value = state.callsign;
+            updateAudioBtnUI();
+            updateHUD();
+            renderActiveMissions();
+            renderLoadoutSelectors();
+        }
+    </script>
+</body>
+</html>
